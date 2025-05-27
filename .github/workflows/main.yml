@@ -1,0 +1,63 @@
+name: Weekly RetroArch PS3 Build
+
+on:
+  schedule:
+    - cron: '0 3 * * 1' # Every Monday at 03:00 UTC
+  workflow_dispatch:
+
+jobs:
+  build-latest-retroarch:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout this repository
+      uses: actions/checkout@v4
+
+    - name: Fetch latest RetroArch release info
+      id: retroarch_release
+      run: |
+        RELEASE_JSON=$(curl -s https://api.github.com/repos/libretro/RetroArch/releases/latest)
+        echo "$RELEASE_JSON" > release.json
+        TAG_NAME=$(jq -r '.tag_name' release.json)
+        echo "latest_tag=${TAG_NAME}" >> $GITHUB_OUTPUT
+
+    - name: Cache last built tag
+      id: check_built
+      run: |
+        LAST_BUILT_TAG=$(cat .last_built_tag 2>/dev/null || echo "none")
+        echo "last_built_tag=${LAST_BUILT_TAG}" >> $GITHUB_OUTPUT
+        if [ "$LAST_BUILT_TAG" = "${{ steps.retroarch_release.outputs.latest_tag }}" ]; then
+          echo "No new release. Exiting."
+          exit 0
+        fi
+
+    - name: Download RetroArch Source
+      if: steps.check_built.outputs.last_built_tag != steps.retroarch_release.outputs.latest_tag
+      run: |
+        wget https://github.com/libretro/RetroArch/archive/${{ steps.retroarch_release.outputs.latest_tag }}.tar.gz
+        tar -xzf ${{ steps.retroarch_release.outputs.latest_tag }}.tar.gz
+
+    - name: Build with ps3dev-docker
+      if: steps.check_built.outputs.last_built_tag != steps.retroarch_release.outputs.latest_tag
+      run: |
+        docker run --rm -v ${{ github.workspace }}:/work -w /work/RetroArch-${{ steps.retroarch_release.outputs.latest_tag }} zeldin/ps3dev-docker bash -c "
+          ./configure --platform=ps3
+          make -j$(nproc)
+        "
+
+    - name: Upload PS3 Build Artifact
+      if: steps.check_built.outputs.last_built_tag != steps.retroarch_release.outputs.latest_tag
+      uses: actions/upload-artifact@v4
+      with:
+        name: retroarch-ps3-${{ steps.retroarch_release.outputs.latest_tag }}
+        path: RetroArch-${{ steps.retroarch_release.outputs.latest_tag }}/retroarch_ps3.self # Adjust if your build output is different
+
+    - name: Save built tag
+      if: steps.check_built.outputs.last_built_tag != steps.retroarch_release.outputs.latest_tag
+      run: |
+        echo "${{ steps.retroarch_release.outputs.latest_tag }}" > .last_built_tag
+        git config --global user.email "actions@github.com"
+        git config --global user.name "GitHub Actions"
+        git add .last_built_tag || true
+        git commit -m "Update last built RetroArch tag" || true
+        git push || true
