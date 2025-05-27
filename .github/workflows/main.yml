@@ -2,7 +2,7 @@ name: Weekly RetroArch PS3 Build
 
 on:
   schedule:
-    - cron: '0 3 * * 1'
+    - cron: '0 3 * * 1' # Every Monday at 03:00 UTC
   workflow_dispatch:
 
 jobs:
@@ -12,6 +12,9 @@ jobs:
     steps:
     - name: Checkout this repository
       uses: actions/checkout@v4
+
+    - name: Set up QEMU for cross-architecture containers
+      uses: docker/setup-qemu-action@v3
 
     - name: Fetch latest RetroArch release info
       id: retroarch_release
@@ -42,17 +45,13 @@ jobs:
         tar -xzf retroarch.tar.gz -C retroarch-src --strip-components=1
         rm retroarch.tar.gz
         
-    - name: Build custom Docker image with Cg Toolkit
-      run: |
-        docker build -t ps3dev-cg -f Dockerfile.ps3dev-cg .
-        
-    - name: Build with custom ps3dev-docker + Cg (QEMU)
+    - name: Build with ps3dev-docker using Makefile.psl1ght (QEMU)
       if: steps.check_built.outputs.last_built_tag != steps.retroarch_release.outputs.latest_tag
       run: |
-        docker run --rm --platform linux/amd64 \
+        docker run --rm \
           -v ${{ github.workspace }}/retroarch-src:/work \
           -w /work \
-          ps3dev-cg bash -c "
+          flipacholas/ps3devextra:ubuntu-latest bash -c "
             make -f Makefile.psl1ght -j$(nproc)
           "
     - name: Upload PS3 Build Artifact
