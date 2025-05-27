@@ -1,9 +1,6 @@
 FROM ps3dev/ps3dev:submodules
 
-# Install dependencies for extracting and using Cg Toolkit
-RUN apt-get update && apt-get install -y wget tar libx11-6
-
-# Download and install NVIDIA Cg Toolkit (x86 Linux version, legacy mirror)
+# Download and install NVIDIA Cg Toolkit
 RUN wget -O cgtoolkit.run "http://developer.download.nvidia.com/cg/Cg_3.1/Cg-3.1_April2012_x86_64.tgz" && \
     mkdir -p /opt/cgtoolkit && \
     tar -xzvf cgtoolkit.run -C /opt/cgtoolkit --strip-components=1 && \
