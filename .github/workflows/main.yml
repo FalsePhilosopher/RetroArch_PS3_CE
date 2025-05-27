@@ -52,7 +52,7 @@ jobs:
     - name: Build with custom ps3dev-docker + Cg (QEMU)
       if: steps.check_built.outputs.last_built_tag != steps.retroarch_release.outputs.latest_tag
       run: |
-        docker run --rm --platform linux/aarch64 \
+        docker run --rm --platform linux/arm64 \
           -v ${{ github.workspace }}/retroarch-src:/work \
           -w /work \
           ps3dev-cg bash -c "
