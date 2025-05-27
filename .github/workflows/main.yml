@@ -51,7 +51,8 @@ jobs:
         docker run --rm --platform linux/aarch64 \
           -v ${{ github.workspace }}/retroarch-src:/work \
           -w /work \
-          zeldin/ps3dev-docker bash -c "
+          hldtux/ps3dev bash -c "
+            ./toolchain.sh
             make -f Makefile.psl1ght -j$(nproc)
           "
 
