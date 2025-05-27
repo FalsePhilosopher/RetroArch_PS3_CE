@@ -20,40 +20,51 @@ jobs:
       id: retroarch_release
       run: |
         RELEASE_JSON=$(curl -s https://api.github.com/repos/libretro/RetroArch/releases/latest)
-        echo "$RELEASE_JSON" > release.json
-        TAG_NAME=$(jq -r '.tag_name' release.json)
-        echo "latest_tag=${TAG_NAME}" >> $GITHUB_OUTPUT
+        TAG_NAME=$(echo "$RELEASE_JSON" | jq -r '.tag_name')
+        echo "latest_tag=$TAG_NAME" >> $GITHUB_OUTPUT
 
-    - name: Cache last built tag
+    - name: Check last built tag
       id: check_built
       run: |
         LAST_BUILT_TAG=$(cat .last_built_tag 2>/dev/null || echo "none")
-        echo "last_built_tag=${LAST_BUILT_TAG}" >> $GITHUB_OUTPUT
-        if [ "$LAST_BUILT_TAG" = "${{ steps.retroarch_release.outputs.latest_tag }}" ]; then
-          echo "No new release. Exiting."
-          exit 0
-        fi
+        echo "last_built_tag=$LAST_BUILT_TAG" >> $GITHUB_OUTPUT
 
-    - name: Download RetroArch Source
+    - name: Cache RetroArch source
+      id: cache-source
+      uses: actions/cache@v4
+      with:
+        path: retroarch-src
+        key: retroarch-src-${{ steps.retroarch_release.outputs.latest_tag }}
+
+    - name: Download RetroArch Source (if not cached)
+      if: steps.cache-source.outputs.cache-hit != 'true'
+      run: |
+        rm -rf retroarch-src
+        mkdir retroarch-src
+        wget https://github.com/libretro/RetroArch/archive/${{ steps.retroarch_release.outputs.latest_tag }}.tar.gz -O retroarch.tar.gz
+        tar -xzf retroarch.tar.gz -C retroarch-src --strip-components=1
+        rm retroarch.tar.gz
+
+    - name: Build with ps3dev-docker using Makefile.psl1ght (QEMU)
       if: steps.check_built.outputs.last_built_tag != steps.retroarch_release.outputs.latest_tag
       run: |
-        wget https://github.com/libretro/RetroArch/archive/${{ steps.retroarch_release.outputs.latest_tag }}.tar.gz
-        tar -xzf ${{ steps.retroarch_release.outputs.latest_tag }}.tar.gz
-
-    - name: Build with ps3dev-docker
-      if: steps.check_built.outputs.last_built_tag != steps.retroarch_release.outputs.latest_tag
-      run: |
-        docker run --rm --platform linux/aarch64 -v ${{ github.workspace }}:/work -w /work/RetroArch-${{ steps.retroarch_release.outputs.latest_tag }} zeldin/ps3dev-docker bash -c "
-          ./configure --platform=ps3
-          make -j$(nproc)
-        "
+        docker run --rm --platform linux/aarch64 \
+          -v ${{ github.workspace }}/retroarch-src:/work \
+          -w /work \
+          zeldin/ps3dev-docker bash -c "
+            make -f Makefile.psl1ght -j$(nproc)
+          "
 
     - name: Upload PS3 Build Artifact
       if: steps.check_built.outputs.last_built_tag != steps.retroarch_release.outputs.latest_tag
       uses: actions/upload-artifact@v4
       with:
         name: retroarch-ps3-${{ steps.retroarch_release.outputs.latest_tag }}
-        path: RetroArch-${{ steps.retroarch_release.outputs.latest_tag }}/retroarch_ps3.self # Adjust if your build output is different
+        path: |
+          retroarch-src/retroarch_ps3.self
+          retroarch-src/retroarch_*.pkg
+          retroarch-src/retroarch_*.elf
+        if-no-files-found: warn
 
     - name: Save built tag
       if: steps.check_built.outputs.last_built_tag != steps.retroarch_release.outputs.latest_tag
