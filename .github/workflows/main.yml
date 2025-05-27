@@ -52,7 +52,7 @@ jobs:
           -v ${{ github.workspace }}/retroarch-src:/work \
           -w /work \
           flipacholas/ps3devextra:ubuntu-latest bash -c "
-            make -f Makefile.psl1ght -DHAVE_GRIFFIN=1 -j$(nproc)
+            make -f Makefile.psl1ght HAVE_GRIFFIN=0 -j$(nproc)
           "
     - name: Upload PS3 Build Artifact
       if: steps.check_built.outputs.last_built_tag != steps.retroarch_release.outputs.latest_tag
