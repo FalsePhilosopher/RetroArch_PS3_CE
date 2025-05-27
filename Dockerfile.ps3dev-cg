@@ -1,0 +1,19 @@
+FROM zeldin/ps3dev-docker
+
+# Install dependencies for extracting and using Cg Toolkit
+RUN apt-get update && apt-get install -y wget tar libx11-6
+
+# Download and install NVIDIA Cg Toolkit (x86 Linux version, legacy mirror)
+RUN wget -O cgtoolkit.run "https://archive.org/download/Cg-Toolkit-3.0/cg_linux_3.0.0016_x86.tgz" && \
+    mkdir -p /opt/cgtoolkit && \
+    tar -xzvf cgtoolkit.run -C /opt/cgtoolkit --strip-components=1 && \
+    rm cgtoolkit.run
+
+# Set environment variables for Cg libraries
+ENV CG_TOOLKIT_PATH=/opt/cgtoolkit
+ENV PATH=$CG_TOOLKIT_PATH/bin:$PATH
+ENV LD_LIBRARY_PATH=$CG_TOOLKIT_PATH/lib:$LD_LIBRARY_PATH
+
+# Link Cg libraries globally for build
+RUN ln -sf /opt/cgtoolkit/lib/libCg.so /usr/lib/libCg.so && \
+    ln -sf /opt/cgtoolkit/lib/libCgGL.so /usr/lib/libCgGL.so
