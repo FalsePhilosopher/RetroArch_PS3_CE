@@ -1,4 +1,4 @@
-FROM zeldin/ps3dev-docker
+FROM zeldin/ps3dev-docker:arm64
 
 # Install dependencies for extracting and using Cg Toolkit
 RUN apt-get update && apt-get install -y wget tar libx11-6
