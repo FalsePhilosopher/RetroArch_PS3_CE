@@ -2,7 +2,7 @@ name: Weekly RetroArch PS3 Build
 
 on:
   schedule:
-    - cron: '0 3 * * 1'
+    - cron: '0 3 * * 1' # Every Monday at 03:00 UTC
   workflow_dispatch:
 
 jobs:
@@ -22,13 +22,13 @@ jobs:
         RELEASE_JSON=$(curl -s https://api.github.com/repos/libretro/RetroArch/releases/latest)
         TAG_NAME=$(echo "$RELEASE_JSON" | jq -r '.tag_name')
         echo "latest_tag=$TAG_NAME" >> $GITHUB_OUTPUT
-
+        
     - name: Check last built tag
       id: check_built
       run: |
         LAST_BUILT_TAG=$(cat .last_built_tag 2>/dev/null || echo "none")
         echo "last_built_tag=$LAST_BUILT_TAG" >> $GITHUB_OUTPUT
-
+        
     - name: Cache RetroArch source
       id: cache-source
       uses: actions/cache@v4
@@ -44,21 +44,16 @@ jobs:
         wget https://github.com/libretro/RetroArch/archive/${{ steps.retroarch_release.outputs.latest_tag }}.tar.gz -O retroarch.tar.gz
         tar -xzf retroarch.tar.gz -C retroarch-src --strip-components=1
         rm retroarch.tar.gz
-
-    - name: Build custom Docker image with Cg Toolkit
-      run: |
-        docker build -t ps3dev-cg -f Dockerfile.ps3dev-cg .
-
-    - name: Build with custom ps3dev-docker + Cg (QEMU)
+        
+    - name: Build with ps3dev-docker using Makefile.psl1ght (QEMU)
       if: steps.check_built.outputs.last_built_tag != steps.retroarch_release.outputs.latest_tag
       run: |
-        docker run --rm --platform linux/arm64 \
+        docker run --rm --platform linux/aarch64 \
           -v ${{ github.workspace }}/retroarch-src:/work \
           -w /work \
-          ps3dev-cg bash -c "
-            make -f Makefile.psl1ght -j$(nproc)
+          zeldin/ps3dev-docker bash -c "
+            make -f Makefile.psl1ght HAVE_CG=0 -j$(nproc)
           "
-
     - name: Upload PS3 Build Artifact
       if: steps.check_built.outputs.last_built_tag != steps.retroarch_release.outputs.latest_tag
       uses: actions/upload-artifact@v4
