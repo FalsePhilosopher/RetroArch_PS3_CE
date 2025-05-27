@@ -13,6 +13,9 @@ jobs:
     - name: Checkout this repository
       uses: actions/checkout@v4
 
+    - name: Set up QEMU for cross-architecture containers
+      uses: docker/setup-qemu-action@v3
+
     - name: Fetch latest RetroArch release info
       id: retroarch_release
       run: |
@@ -40,7 +43,7 @@ jobs:
     - name: Build with ps3dev-docker
       if: steps.check_built.outputs.last_built_tag != steps.retroarch_release.outputs.latest_tag
       run: |
-        docker run --rm -v ${{ github.workspace }}:/work -w /work/RetroArch-${{ steps.retroarch_release.outputs.latest_tag }} zeldin/ps3dev-docker bash -c "
+        docker run --rm --platform linux/aarch64 -v ${{ github.workspace }}:/work -w /work/RetroArch-${{ steps.retroarch_release.outputs.latest_tag }} zeldin/ps3dev-docker bash -c "
           ./configure --platform=ps3
           make -j$(nproc)
         "
