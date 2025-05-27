@@ -1,4 +1,4 @@
-FROM ps3dev/ps3dev
+FROM ps3dev/ps3dev:submodules
 
 # Install dependencies for extracting and using Cg Toolkit
 RUN apt-get update && apt-get install -y wget tar libx11-6
